@@ -1,3 +1,4 @@
+import io
 from flask import Flask, request
 import csv
 
@@ -7,7 +8,7 @@ app = Flask(__name__)
 def home():
     return "Hello, Flask!"
 
-@app.route('/upload.csv', methods=['POST'])
+@app.route('/upload_csv', methods=['POST'])
 def upload_csv():
     if 'file' not in request.files:
         return {'error': 'File not uploaded'}, 400
@@ -19,7 +20,8 @@ def upload_csv():
 
     data = []
     try:
-        csv_read = csv.DictReader(file.stream)
+        decoded_file = io.StringIO(file.stream.read().decode('utf-8'))
+        csv_read = csv.DictReader(decoded_file)
         for row in csv_read:
             data.append(row)
     except Exception as e:
