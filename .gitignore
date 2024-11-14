@@ -4,3 +4,4 @@ node_modules/
 *.sqlite3
 *.pyc
 credentials.json
+.env

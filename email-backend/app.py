@@ -1,14 +1,37 @@
-import io
 from flask import Flask, request
-from google_sheets import read_google_sheet
 import csv
+from google_sheets import read_google_sheet
+import io
+from pymongo import MongoClient
+import os
+from dotenv import load_dotenv
 
+# Load env variables
+load_dotenv()
+
+# MongoDB connection
+mongo_uri = os.getenv("MONGO_URI")
+client = MongoClient(mongo_uri)
+db = client.email_sender
+email_data_collection = db.email_data
+users_collection = db.users
+schedules_collection = db.schedules
+
+# Flask app
 app = Flask(__name__)
 
 @app.route("/")
 def home():
     return "Hello, Flask!"
 
+@app.route("/test_db", methods = ['GET'])
+def test_db():
+    try:
+        email_data_collection.insert_one({"test": "Connection Successful"})
+        return {"message": "Database connection successful!"}, 200
+    except Exception as e:
+        return {"error": str(e)}, 500
+        
 @app.route('/upload_csv', methods=['POST'])
 def upload_csv():
     if 'file' not in request.files:
