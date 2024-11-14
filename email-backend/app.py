@@ -5,6 +5,8 @@ import io
 import gspread
 import os
 from dotenv import load_dotenv
+import uuid
+from datetime import datetime
 
 # Load env variables
 load_dotenv()
@@ -24,11 +26,11 @@ app = Flask(__name__)
 def home():
     return "Hello, Flask!"
 
-@app.route("/test_db", methods = ['GET'])
-def test_db():
+@app.route("/delete_db_data", methods = ['DELETE'])
+def delete_db_data():
     try:
-        email_data_collection.insert_one({"test": "Connection Successful"})
-        return {"message": "Database connection successful!"}, 200
+        email_data_collection.delete_many({})
+        return {"message": "Database deletion successful!"}, 200
     except Exception as e:
         return {"error": str(e)}, 500
         
@@ -44,9 +46,16 @@ def upload_csv():
 
     data = []
     try:
+        
+        batch_id = str(uuid.uuid4())
+        timestamp = datetime.utcnow()
+
         decoded_file = io.StringIO(file.stream.read().decode('utf-8'))
         csv_read = csv.DictReader(decoded_file)
+
         for row in csv_read:
+            row['batch_id'] = batch_id
+            row['uploaded_at'] = timestamp
             data.append(row)
 
         if data:
@@ -55,7 +64,7 @@ def upload_csv():
     except Exception as e:
         return {"error": str(e)}, 500
 
-    return {'message': "CSV uploaded successfully", 'data': data}, 200
+    return {'message': "CSV uploaded successfully"}, 200
 
 @app.route('/fetch_google_sheet', methods=['GET'])
 def fetch_google_sheet():
@@ -66,21 +75,28 @@ def fetch_google_sheet():
     
     try:
 
+        batch_id = str(uuid.uuid4())
+        timestamp = datetime.utcnow()
+
         gc = gspread.service_account(filename="credentials.json")
         sheet = gc.open_by_url(sheet_url)
         worksheet = sheet.get_worksheet(0)
 
         data = worksheet.get_all_records()
 
+        for row in data:
+            row['batch_id'] = batch_id
+            row['uploaded_at'] = timestamp
+
         if data:
-            email_data_collection.insert_many(data)
+            email_data_collection.insert_many(data) 
         else:
             return {"error": "Data not Sufficient"}, 404
 
     except Exception as e:
         return {"error": str(e)}, 500
 
-    return {"message": "Data fetched Sucecsfully", "data": data}, 200
+    return {"message": "Data fetched Sucecsfully"}, 200
 
 if __name__ == "__main__":
     app.run(debug=True)
