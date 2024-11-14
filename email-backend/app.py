@@ -72,7 +72,9 @@ def fetch_google_sheet():
 
         data = worksheet.get_all_records()
 
-        if not data:
+        if data:
+            email_data_collection.insert_many(data)
+        else:
             return {"error": "Data not Sufficient"}, 404
 
     except Exception as e:
