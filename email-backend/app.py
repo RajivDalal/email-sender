@@ -97,7 +97,6 @@ def fetch_google_sheet():
         return {"error": str(e)}, 500
 
     return {"message": "Data fetched Sucecsfully"}, 200
-<<<<<<< HEAD
 
 @app.route('/api/data-batch', methods=['GET'])
 def get_data_by_batch():
@@ -115,8 +114,6 @@ def get_data_by_batch():
         return {"error": str(e)}, 500
 
     return {"message": "Data retrieved successfully", "data": data}, 200
-=======
->>>>>>> refs/remotes/origin/main
 
 if __name__ == "__main__":
     app.run(debug=True)
