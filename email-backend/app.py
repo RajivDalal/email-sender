@@ -8,6 +8,10 @@ from dotenv import load_dotenv
 import uuid
 from datetime import datetime
 
+from google_auth_oauthlib.flow import Flow
+from utils import credentials_to_dict, dict_to_credentials
+import jwt
+
 # Load env variables
 load_dotenv()
 
@@ -22,6 +26,7 @@ schedules_collection = db.schedules
 # Flask app
 app = Flask(__name__)
 
+#Testing routes
 @app.route("/")
 def home():
     return "Hello, Flask!"
@@ -33,7 +38,69 @@ def delete_db_data():
         return {"message": "Database deletion successful!"}, 200
     except Exception as e:
         return {"error": str(e)}, 500
-        
+
+#Auth routes
+@app.route("/authorize", methods = ['GET'])
+def authorize():
+
+    SCOPES = ["openid","https://www.googleapis.com/auth/gmail.send","https://www.googleapis.com/auth/userinfo.email"]
+
+    flow = Flow.from_client_secrets_file(
+            'client_secret.json',
+            scopes=SCOPES,
+            redirect_uri='http://localhost:5000/oauth2callback'
+            )
+
+    auth_url, _ = flow.authorization_url(access_type='offline', include_granted_scopes='true')
+
+    return {"auth_url": auth_url}, 200
+
+@app.route('/oauth2callback', methods=['GET'])
+def oauth2callback():
+    try:
+        SCOPES = [
+            'openid',
+            'https://www.googleapis.com/auth/userinfo.email',
+            'https://www.googleapis.com/auth/gmail.send'
+        ]
+        flow = Flow.from_client_secrets_file(
+            'client_secret.json',
+            scopes=SCOPES,
+            redirect_uri='http://localhost:5000/oauth2callback'
+        )
+        flow.fetch_token(authorization_response=request.url)
+
+        credentials = flow.credentials
+
+        # Debugging
+        print(f"Credentials: {credentials}")
+        print(f"ID Token: {credentials.id_token}")
+
+        # Decode ID token
+        email = None
+        if credentials.id_token:
+            id_token_decoded = jwt.decode(credentials.id_token, options={"verify_signature": False})
+            email = id_token_decoded.get('email')
+
+        if not email:
+            return {"error": "Unable to retrieve email from credentials"}, 400
+
+        # Save to MongoDB
+        users_collection.update_one(
+            {'email': email},
+            {'$set': {
+                'email': email,
+                'credentials': credentials_to_dict(credentials)
+            }},
+            upsert=True
+        )
+
+        return {"message": "Authorization successful", "email": email}, 200
+    except Exception as e:
+        print(f"Error during OAuth2 callback: {e}")
+        return {"error": "Internal Server Error", "details": str(e)}, 500
+
+#Upload CSV/Google Sheets
 @app.route('/upload_csv', methods=['POST'])
 def upload_csv():
     if 'file' not in request.files:
@@ -98,6 +165,7 @@ def fetch_google_sheet():
 
     return {"message": "Data fetched Sucecsfully"}, 200
 
+#API Routes
 @app.route('/api/data-batch', methods=['GET'])
 def get_data_by_batch():
     batch_id = request.args.get('batch_id')

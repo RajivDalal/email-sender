@@ -4,4 +4,5 @@ node_modules/
 *.sqlite3
 *.pyc
 credentials.json
+client_secret.json
 .env
